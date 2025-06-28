@@ -1,24 +1,46 @@
 "use client"
 
 import type React from "react"
+import { jwtDecode } from "jwt-decode"
 
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea , ScrollBar} from "@/components/ui/scroll-area"
 import { Send, MessageCircle } from "lucide-react"
 import type { Message } from "@/app/chat/page"
 
 interface ChatWindowProps {
   selectedChat: { type: "group" | "direct"; id: number; name: string } | null
   messages: Message[]
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
   onSendMessage: (content: string) => void
 }
 
-export default function ChatWindow({ selectedChat, messages, onSendMessage }: ChatWindowProps) {
+export default function ChatWindow({ selectedChat, messages,setMessages, onSendMessage }: ChatWindowProps) {
   const [newMessage, setNewMessage] = useState("")
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
-  const currentUserId = 1 // This should come from auth context in a real app
+  const scrollAnchorRef = useRef<HTMLDivElement | null>(null)
+
+
+  // Decode user ID from token after mount
+  useEffect(() => {
+    const token = localStorage.getItem("token")
+    if (token) {
+      try {
+        const decoded: { user_id: number } = jwtDecode(token)
+        setCurrentUserId(decoded.user_id)
+        localStorage.setItem("userId", decoded.user_id.toString())
+      } catch (error) {
+        console.error("Failed to decode token:", error)
+      }
+    }
+  }, [])
+  useEffect(() => {
+    scrollAnchorRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -26,13 +48,23 @@ export default function ChatWindow({ selectedChat, messages, onSendMessage }: Ch
     }
   }, [messages])
 
+
+
+
   const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (newMessage.trim() && selectedChat) {
-      onSendMessage(newMessage.trim())
-      setNewMessage("")
+  e.preventDefault()
+  if (newMessage.trim() && selectedChat && currentUserId !== null) {
+    const messageToAdd: Message = {
+      sender_id: currentUserId,
+      content: newMessage.trim(),
+      created_at: new Date().toISOString(), // or new Date() depending on your type
     }
+
+    onSendMessage(newMessage.trim()) // send via WebSocket
+    setMessages((prev) => [...prev, messageToAdd]) // update UI immediately
+    setNewMessage("")
   }
+}
 
   if (!selectedChat) {
     return (
@@ -51,14 +83,16 @@ export default function ChatWindow({ selectedChat, messages, onSendMessage }: Ch
       {/* Chat Header */}
       <div className="p-4 border-b border-gray-200 bg-white">
         <h2 className="font-semibold text-lg">{selectedChat.name}</h2>
-        <p className="text-sm text-gray-500">{selectedChat.type === "group" ? "Group Chat" : "Direct Message"}</p>
+        <p className="text-sm text-gray-500">
+          {selectedChat.type === "group" ? "Group Chat" : "Direct Message"}
+        </p>
       </div>
 
       {/* Messages */}
       <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
         <div className="space-y-4">
           {messages.map((message, index) => {
-            const isOwnMessage = message.sender_id === currentUserId
+            const isOwnMessage = currentUserId !== null && message.sender_id === currentUserId
             return (
               <div key={index} className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}>
                 <div
@@ -66,7 +100,9 @@ export default function ChatWindow({ selectedChat, messages, onSendMessage }: Ch
                     isOwnMessage ? "bg-green-500 text-white" : "bg-white border border-gray-200"
                   }`}
                 >
-                  {!isOwnMessage && <p className="text-xs text-gray-500 mb-1">User {message.sender_id}</p>}
+                  {!isOwnMessage && (
+                    <p className="text-xs text-gray-500 mb-1">User {message.sender_id}</p>
+                  )}
                   <p className="text-sm">{message.content}</p>
                   <p className={`text-xs mt-1 ${isOwnMessage ? "text-green-100" : "text-gray-500"}`}>
                     {new Date(message.created_at).toLocaleTimeString([], {
@@ -78,8 +114,10 @@ export default function ChatWindow({ selectedChat, messages, onSendMessage }: Ch
               </div>
             )
           })}
+          <div ref={scrollAnchorRef} />
         </div>
       </ScrollArea>
+
 
       {/* Message Input */}
       <div className="p-4 border-t border-gray-200 bg-white">

@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -9,6 +7,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
+import {jwtDecode} from "jwt-decode"
+
+interface DecodedToken {
+  user_id: number
+  exp: number
+  iat: number
+}
 
 export default function LoginForm() {
   const [username, setUsername] = useState("")
@@ -34,8 +39,13 @@ export default function LoginForm() {
       const data = await response.json()
 
       if (response.ok) {
+        // Decode token and extract user ID
+        const decoded = jwtDecode<DecodedToken>(data.token)
+
         localStorage.setItem("token", data.token)
         localStorage.setItem("username", username)
+        localStorage.setItem("userId", decoded.user_id.toString()) // 👈 store userId
+
         router.push("/chat")
       } else {
         setError(data.message || "Login failed")

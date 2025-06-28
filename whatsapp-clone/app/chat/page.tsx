@@ -52,10 +52,18 @@ export default function ChatPage() {
   }, [token])
 
   useEffect(() => {
-    if (lastMessage) {
-      setMessages((prev) => [...prev, lastMessage])
+    if (!lastMessage || !selectedChat) return;
+
+    const isForCurrentChat =
+      (selectedChat.type === "group" && lastMessage.group_id === selectedChat.id) ||
+      (selectedChat.type === "direct" &&
+        (lastMessage.sender_id === selectedChat.id || lastMessage.receiver_id === selectedChat.id));
+
+    if (isForCurrentChat) {
+      setMessages((prev) => [...prev, lastMessage]);
     }
-  }, [lastMessage])
+  }, [lastMessage, selectedChat]);
+
 
   const fetchGroups = async () => {
     try {
@@ -135,7 +143,12 @@ export default function ChatPage() {
         onLogout={handleLogout}
         token={token}
       />
-      <ChatWindow selectedChat={selectedChat} messages={messages} onSendMessage={handleSendMessage} />
+      <ChatWindow
+        selectedChat={selectedChat}
+        messages={messages}
+        setMessages={setMessages}
+        onSendMessage={handleSendMessage}
+      />
     </div>
   )
 }
