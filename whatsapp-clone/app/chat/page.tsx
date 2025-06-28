@@ -15,6 +15,7 @@ export interface Group {
 export interface Message {
   sender_id: number
   receiver_id?: number
+  sender_name?: string
   group_id?: number
   content: string
   created_at: string

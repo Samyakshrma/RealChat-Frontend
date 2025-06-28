@@ -101,7 +101,8 @@ export default function ChatWindow({ selectedChat, messages,setMessages, onSendM
                   }`}
                 >
                   {!isOwnMessage && (
-                    <p className="text-xs text-gray-500 mb-1">User {message.sender_id}</p>
+                    <p className="text-xs text-gray-500 mb-1">{message.sender_name || `User ${message.sender_id}`}</p>
+
                   )}
                   <p className="text-sm">{message.content}</p>
                   <p className={`text-xs mt-1 ${isOwnMessage ? "text-green-100" : "text-gray-500"}`}>
